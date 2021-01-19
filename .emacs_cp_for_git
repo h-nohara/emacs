@@ -120,14 +120,19 @@
 
 (require 'company)
 
-(company-mode)
+;;(company-mode)
+(add-hook 'after-init-hook 'global-company-mode)
+(add-hook 'company-mode-hook (lambda ()
+                               (setq company-idle-delay 0.1)
+                               (setq company-minimum-prefix-length 1))
+)
 
 (require 'company-tern)
 
 (add-to-list 'company-backends 'company-tern)
 (add-hook 'js2-mode-hook (lambda ()
+;;                           (company-mode)
                            (tern-mode)
-                           (company-mode)
                            (setq js2-basic-offset 4)))
 
 ;; ===== Python
@@ -150,7 +155,7 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    (quote
-    (color-moccur jedi git-gutter highlight-symbol helm-tramp smooth-scrolling company-irony irony easy-kill helm-ls-git helm-git-grep helm-ag web-mode js2-mode company-tern))))
+    (swift-mode color-moccur jedi git-gutter highlight-symbol helm-tramp smooth-scrolling company-irony irony easy-kill helm-ls-git helm-git-grep helm-ag web-mode js2-mode company-tern))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -207,12 +212,14 @@
 ;;  (setq c-mode-markup-indent-offset 10)
   ;;  (setq tab-width 10))
   (setq c-basic-offset 4)
+  (setq indent-tabs-mode t)
+;;  (company-mode)
 )
 (add-hook 'c-mode-hook 'my-c-mode-hook)
 
 
 (require 'irony)
-;;(add-hook 'c-mode-hook 'irony-mode)
+(add-hook 'c-mode-hook 'irony-mode)
 (add-hook 'c++-mode-hook 'irony-mode)
 (add-hook 'objc-mode-hook 'irony-mode)
 (add-hook 'irony-mode-hook 'irony-cdb-autosetup-compile-options)
