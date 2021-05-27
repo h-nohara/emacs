@@ -27,6 +27,7 @@
 (define-key global-map (kbd "C-x C-j") 'helm-git-grep)
 (global-set-key [remap kill-ring-save] 'easy-kill)
 (define-key global-map (kbd "C-x C-t") 'find-file)
+(define-key global-map (kbd "M-.") 'dumb-jump-go)
 
 
 (save-place-mode 1)
@@ -82,6 +83,20 @@
 ;; helm-occur
 (define-key isearch-mode-map (kbd "M-o") 'helm-occur-from-isearch);; helm-swoop https://github.com/emacsorphanage/helm-swoop
 
+;; migemo
+(require 'migemo)
+(setq migemo-command "cmigemo")
+(setq migemo-options '("-q" "--emacs"))
+
+;; 辞書ファイルを環境に合わせて設定してください！
+(setq migemo-dictionary "/usr/local/share/migemo/utf-8/migemo-dict")
+
+(setq migemo-user-dictionary nil)
+(setq migemo-regex-dictionary nil)
+(setq migemo-coding-system 'utf-8-unix)
+(load-library "migemo")
+(migemo-init)
+
 ;; default editor setting
 
 ; 対応する括弧を表示
@@ -110,6 +125,27 @@
 ;;(setq-default tab-width 4)
 (setq-default tab-width 4 indent-tabs-mode nil)
 
+
+;; org-mode
+(setq org-startup-indented t)
+(setq org-indent-mode-turns-on-hiding-stars nil)
+(setq org-indent-indentation-per-level 4)
+
+;; org-capture
+(global-set-key (kbd "C-c c") 'org-capture)
+(setq work-directory "~/memo/")
+(setq memofile (concat work-directory "memo.org"))
+(setq org-capture-templates
+      '(
+        ("m" "simple memo" entry (file+headline memofile "Memo") "\n* Heading\n%?%i\n")
+        ("d" "date" entry (file+datetree memofile "Date Todo") "* %T %?" :empty-lines 1 :jump-to-captured 1)
+       )
+)
+
+
+;; code jump : dumb-jump
+(add-hook 'xref-backend-functions #'dumb-jump-xref-activate)
+
 ;;; git
 (global-git-gutter-mode t)
 
@@ -136,6 +172,10 @@
 ;;                           (company-mode)
                            (tern-mode)
                            (setq js2-basic-offset 4)))
+
+;; https://github.com/pashky/restclient.el
+(require 'restclient)
+
 
 ;; ===== Python
 
@@ -165,8 +205,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   (quote
-    (swift-mode color-moccur jedi git-gutter highlight-symbol helm-tramp smooth-scrolling company-irony irony easy-kill helm-ls-git helm-git-grep helm-ag web-mode js2-mode company-tern))))
+   '(restclient helm-swoop helm-migemo migemo dumb-jump swift-mode color-moccur jedi git-gutter highlight-symbol helm-tramp smooth-scrolling company-irony irony easy-kill helm-ls-git helm-git-grep helm-ag web-mode js2-mode company-tern)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

@@ -1,6 +1,6 @@
-;; -*- emacs-lisp -*- <20/08/28 16:17:00 /Users/nohara/.emacs.d/tramp>
+;; -*- emacs-lisp -*- <21/04/07 18:10:00 /Users/nohara/.emacs.d/tramp>
 ;; Tramp connection history.  Don't change this file.
-;; You can delete it, forcing Tramp to reapply the checks.
+;; Run `M-x tramp-cleanup-all-connections' instead.
 
 (((tramp-file-name "scp" nil nil "richka_recording" nil nil nil)
   ("uname" "Linux 4.15.0-1051-aws")
@@ -44,4 +44,8 @@
   ("env-u-option" t)
   ("~root" "/root"))
  ((tramp-file-name "ssh" nil nil "richka_recording" nil nil nil)
+  nil)
+ ((tramp-file-name "ssh" nil nil "analytics" nil nil nil)
+  nil)
+ ((tramp-file-name "sudo" "root" nil "analytics" nil nil nil)
   nil))
