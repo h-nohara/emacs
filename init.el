@@ -21,6 +21,9 @@
 
 (package-initialize)
 
+
+(global-unset-key (kbd "C-z"))
+
 (define-key global-map (kbd "C-t") 'set-mark-command)
 (define-key global-map (kbd "C-x C-f") 'helm-ls-git-ls)
 (define-key global-map (kbd "C-x C-d") 'helm-find-files)
@@ -29,11 +32,24 @@
 (define-key global-map (kbd "C-x C-t") 'find-file)
 (define-key global-map (kbd "M-.") 'dumb-jump-go)
 
+;; Window size can be changed with crl+shift+arrow by default
+;; (global-set-key (kbd "<C-up>") 'shrink-window)
+;; (global-set-key (kbd "<C-down>") 'enlarge-window)
+;; (global-set-key (kbd "<C-left>") 'shrink-window-horizontally)
+;; (global-set-key (kbd "<C-right>") 'enlarge-window-horizontally)
+
+
+
+(global-set-key (kbd "M-x") 'helm-M-x)
 
 (save-place-mode 1)
 
-;; show line number
-;;(global-display-line-numbers-mode)
+;; clip board
+(setq select-enable-primary nil)
+(setq select-enable-clipboard t)
+;;(setq x-select-enable-clipboard t)
+
+
 
 (setq scroll-conservatively 3)
 (setq scroll-margin 10)
@@ -43,15 +59,101 @@
 (setq windmove-wrap-around t)
 
 
+;; display size
+(if (display-graphic-p)
+    (progn
+      (if (> 2000 (display-pixel-width))
+          (defvar left-offset 1000)
+        (defvar left-offset 2750))
+      (setq initial-frame-alist
+            '(
+              (width . 100)
+              (height . 53)
+              (left . 850)
+              (top . 30)))
+      (setq inhibit-splash-screen t)
+      (tool-bar-mode -1)))
+
+
+;;; color theme
+(add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
+(load-theme 'vscode-dark-plus t)
+
+
+;; todo
+(defun my-check-fonts()
+  (describe-font nil)  ;; shown in subbuffer (or minibuffer)
+  (font-family-list)  ;; only shown in scratch buffer
+  (message "type 'x-list-fonts <family>' to show XLFD names"))
+
+;; coding用フォント
+;; (firacode), roboto(日本語含む), input, liberation-mono(カクカクしてる), noto sans(日本語), adobe source code
+
+;; (set-face-attribute 'default nil
+;;                     :family "Menlo"
+;;                     ;; :height 200
+;; )
+;; (set-fontset-font nil 'japanese-jisx0208
+;;                   (font-spec :family "Hiragino Kaku Gothic ProN"))
+;; (setq face-font-rescale-alist
+;;       '((".*Hiragino Kaku Gothic ProN.*" . 1.2)))
+;; (add-to-list 'default-frame-alist '(font . "-1ASC-Liberation Mono-bold-italic-normal-*-*-*-*-*-m-0-iso10646-1"))
+
+(set-default-font "-1ASC-Liberation Mono-normal-normal-normal-*-*-*-*-*-m-0-iso10646-1")
+;; (add-to-list 'default-frame-alist '(font . "Liberation Mono" ))
+
+;; (set-face-attribute 'default nil :font "Liberation Mono" )
+;; (set-frame-font "Liberation Mono" nil t)
+
+;; garbage collection
+(setq garbage-collection-messages t)
+;; (setq gc-cons-threshold (* 20 1024 1024))  ;; ロードが遅いときはメモリの閾値が低すぎるのが原因かも
+
+
+;; show line number
+;;(global-display-line-numbers-mode)
+
+
+(defun copy-file-path ()
+  (interactive)
+  (let ((filename (buffer-file-name)))
+    (kill-new filename)
+    (message "%s" filename)))
+
+
+;; (setq debug-on-error t)
+
+
+;; neotree
+(setq neo-smart-open t)
+(setq neo-theme (if (display-graphic-p) 'icons 'arrow))
+(setq neo-vc-integration '(char))
+
+;; neotree custom shortcuts. Needs counsel package for x command.
+(setq neo-theme (if (display-graphic-p) 'icons 'arrow))
+(with-eval-after-load 'neotree
+  (define-key neotree-mode-map (kbd "a") 'neotree-hidden-file-toggle)
+  (define-key neotree-mode-map (kbd "i") 'neotree-quick-look)
+  (define-key neotree-mode-map (kbd "j") 'neotree-next-line)
+  (define-key neotree-mode-map (kbd "k") 'neotree-previous-line)
+  (define-key neotree-mode-map (kbd "u") 'neotree-select-up-node)
+  (define-key neotree-mode-map (kbd "w") 'neotree-copy-filepath-to-yank-ring)
+  (define-key neotree-mode-map (kbd "x")
+    (lambda ()
+      (interactive)
+      (counsel-locate-action-extern (neo-buffer--get-filename-current-line))))
+  ;; (define-key neotree-mode-map (kbd "<enter>") 'neotree-enter-hide)
+  (define-key neotree-mode-map (kbd "<left>") 'neotree-select-up-node)
+  (define-key neotree-mode-map (kbd "<right>") 'neotree-change-root)
+  (define-key neotree-mode-map (kbd "<tab>") 'neotree-quick-look))
+
+
 ;; find recent file
 (recentf-mode 1)
 (setq recentf-max-menu-items 25)
 (setq recentf-max-saved-items 25)
 (global-set-key "\C-x\ \C-r" 'recentf-open-files)
 
-;;; color theme
-(add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
-(load-theme 'vscode-dark-plus t)
 
 ;;; auto highlight
 (add-hook 'prog-mode-hook 'highlight-symbol-mode)
@@ -88,8 +190,9 @@
 (setq migemo-command "cmigemo")
 (setq migemo-options '("-q" "--emacs"))
 
-;; 辞書ファイルを環境に合わせて設定してください！
-(setq migemo-dictionary "/usr/local/share/migemo/utf-8/migemo-dict")
+;; Place dict file previously. automatically downloaded with `sudo apt install cmigemo`
+;; (setq migemo-dictionary "/usr/local/share/migemo/utf-8/migemo-dict") ;; for Mac
+(setq migemo-dictionary "/usr/share/cmigemo/utf-8/migemo-dict") ;; for Ubuntu
 
 (setq migemo-user-dictionary nil)
 (setq migemo-regex-dictionary nil)
@@ -150,6 +253,48 @@
 (global-git-gutter-mode t)
 
 
+(defun my-code-review-region (beg end)
+  "Reformat the region(BEG,END) for code review and copy to clipborad."
+  (interactive "r")
+  (goto-char beg)
+  (let* ((text (s-chomp (buffer-substring-no-properties beg end)))
+         (branch (car (vc-git-branches)))
+         (line-number (line-number-at-pos))
+         (file (buffer-file-name))
+         (path (replace-regexp-in-string "^.*branches/" ""
+                                         (replace-regexp-in-string
+                                          "^.*trunk/" "" file)))
+         (relative-path (if (vc-git-registered file)
+                            (file-relative-name path (vc-root-dir)) path)))
+    (with-temp-buffer
+       (insert text)
+       (goto-char (point-min))
+       (while (re-search-forward "^" nil t)
+         (replace-match "| " nil nil))
+       (goto-char (point-min))
+       (insert (format "+---[%s%s:%s]\n" (if branch (format "Git:%s " branch) "") relative-path line-number))
+       (goto-char (point-max))
+       (insert "\n+---\n")
+       (kill-region (point-min) (point-max))
+       (message "Copied"))))
+
+
+;; yasnippet
+;; To install snippets `M-x package-install yasnippet-snippets`
+(use-package yasnippet
+  :ensure t
+  :diminish yas-minor-mode
+  :bind (:map yas-minor-mode-map
+              ("C-x y i" . yas-insert-snippet)
+              ("C-x i n" . yas-new-snippet)
+              ("C-x i v" . yas-visit-snippet-file)
+              ("C-x i l" . yas-describe-tables)
+              ("C-x i g" . yas-reload-all))
+  :config
+  (yas-global-mode 1)
+  (setq yas-prompt-functions '(yas-ido-prompt))
+  )
+
 ;;; company
 
 (with-eval-after-load 'company
@@ -177,27 +322,48 @@
 (require 'restclient)
 
 
+
 ;; ===== Python
 
-;; (require 'epc)
-;; (require 'auto-complete-config)
-;; (require 'python)
-;; (setenv "PYTHONPATH" "~/.virtualenvs/testing/lib/python3.8/site-packages/")
-(setq jedi:server-command (list (executable-find "jediepcserver"))) 
-(add-hook 'python-mode-hook 'jedi:setup)
-(setq jedi:complete-on-dot t)
-(add-hook 'python-mode-hook (lambda()
-                              (defun my-compile ()
-                                "Use compile to run python programs"
-                                (interactive)
-                                (compile (concat "python " (buffer-name))))
-                              (setq compilation-scroll-output t)
-                              (local-set-key (kbd "C-C C-C") 'my-compile)
-                              ))
+;; (defun my-load-jedi ()
+;;   (setq jedi:server-command (list (executable-find "jediepcserver")))
+;;   (add-hook 'python-mode-hook 'jedi:setup)
+;;   (setq jedi:complete-on-dot t)
+;;   (add-hook 'python-mode-hook
+;;             (lambda()
+;;               (elpy-enable)
+;;               (setq elpy-rpc-python-command "python3")
+;;               (defun my-compile ()
+;;                 "Use compile to run python programs"
+;;                 (interactive)
+;;                 (compile (concat "python3 " (buffer-name)))
+;;                 ))))
+
+;;; pip install jedi && pip install epc
+(defun my-load-jedi ()
+  (interactive)
+  (require 'epc)
+  (require 'jedi-core)
+  (require 'company-jedi)
+  (jedi:setup)
+  ;;(setq jedi:setup-keys t);これを入れると手動<C-tab>で立ち上げる
+
+  (company-mode)
+  (add-to-list 'company-backends 'company-jedi) ; backendに追加
+  (define-key jedi-mode-map (kbd "C-i") 'jedi:goto-definition)
+  (define-key jedi-mode-map (kbd "C-S-j") 'jedi:goto-definition-pop-marker)
+  (setq jedi:complete-on-dot t)
+  (setq jedi:use-shortcuts t))
+
+(add-hook 'python-mode-hook
+          (lambda ()
+            (local-set-key (kbd "C-C C-C") 'my-compile)
+            (setq compilation-scroll-output t)
+            (my-load-jedi)))
 
 
 ;; ====== js2
-(add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode))
+(add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode)) ;; 重い？ fly-check 補完はcompany-tern
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -205,7 +371,8 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(restclient helm-swoop helm-migemo migemo dumb-jump swift-mode color-moccur jedi git-gutter highlight-symbol helm-tramp smooth-scrolling company-irony irony easy-kill helm-ls-git helm-git-grep helm-ag web-mode js2-mode company-tern)))
+   (quote
+    (yasnippet-snippets yasnippet elpy company-jedi counsel neotree xclip lsp-ui lsp-mode company-go go-mode magit edit-server restclient helm-swoop helm-migemo migemo dumb-jump swift-mode color-moccur jedi git-gutter highlight-symbol helm-tramp smooth-scrolling company-irony irony easy-kill helm-ls-git helm-git-grep helm-ag web-mode js2-mode company-tern))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -262,7 +429,7 @@
 ;;  (setq c-mode-markup-indent-offset 10)
   ;;  (setq tab-width 10))
   (setq c-basic-offset 4)
-  (setq indent-tabs-mode t)
+;;  (setq indent-tabs-mode t)
 ;;  (company-mode)
 )
 (add-hook 'c-mode-hook 'my-c-mode-hook)
@@ -273,3 +440,33 @@
 (add-hook 'c++-mode-hook 'irony-mode)
 (add-hook 'objc-mode-hook 'irony-mode)
 (add-hook 'irony-mode-hook 'irony-cdb-autosetup-compile-options)
+
+
+;; edit-server : for chrome extension
+;; (use-package edit-server
+;;   :ensure t
+;;   :commands edit-server-start
+;;   :init (if after-init-time
+;;               (edit-server-start)
+;;             (add-hook 'after-init-hook
+;;                       #'(lambda() (edit-server-start))))
+;;   :config (setq edit-server-new-frame-alist
+;;                 '((name . "Edit with Emacs FRAME")
+;;                   (top . 200)
+;;                   (left . 200)
+;;                   (width . 80)
+;;                   (height . 25)
+;;                   (minibuffer . t)
+;;                   (menu-bar-lines . t)
+;;                   (window-system . x))))
+
+
+;; golang
+(add-hook 'go-mode-hook
+  (lambda ()
+    (setq-default)
+    (setq tab-width 4)
+    (setq standard-indent 4)
+    (setq indent-tabs-mode nil)))
+
+(setq eww-search-prefix "http://www.google.co.jp/search?q=")
