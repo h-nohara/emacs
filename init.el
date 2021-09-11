@@ -39,8 +39,11 @@
 ;; (global-set-key (kbd "<C-right>") 'enlarge-window-horizontally)
 
 
-
+;; (global-set-key (kbd "C-s") 'helm-swoop-from-isearch)
+;; (add-hook 'vc-log-mode-hook (lambda ()
+;; ))
 (global-set-key (kbd "M-x") 'helm-M-x)
+(global-set-key (kbd "C-r") 'eval-buffer)
 
 (save-place-mode 1)
 
@@ -59,17 +62,20 @@
 (setq windmove-wrap-around t)
 
 
-;; display size
+;; window size and position
 (if (display-graphic-p)
     (progn
-      (if (> 2000 (display-pixel-width))
-          (defvar left-offset 1000)
-        (defvar left-offset 2750))
+      (set 'left-offset 850)
+      (if (< 2000 (display-pixel-width))
+          (set 'left-offset 2750))
+      (message "left-offset is %d" left-offset)
       (setq initial-frame-alist
             '(
               (width . 100)
               (height . 53)
-              (left . 850)
+              ;; (left . left-offset)
+              ;;(left . 2750)  ;; for multiple display
+              (left . 850)  ;; for single display
               (top . 30)))
       (setq inhibit-splash-screen t)
       (tool-bar-mode -1)))
@@ -79,6 +85,9 @@
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
 (load-theme 'vscode-dark-plus t)
 
+;; (set-face-attribute 'helm-selection nil
+;;                     :background "#441100"
+;;                     :foreground "#441100")
 
 ;; todo
 (defun my-check-fonts()
@@ -241,9 +250,19 @@
 (setq org-capture-templates
       '(
         ("m" "simple memo" entry (file+headline memofile "Memo") "\n* Heading\n%?%i\n")
-        ("d" "date" entry (file+datetree memofile "Date Todo") "* %T %?" :empty-lines 1 :jump-to-captured 1)
-       )
-)
+        ("d" "date" entry (file+datetree memofile "Date Todo") "* %T %?" :empty-lines 1 :jump-to-captured 1)))
+
+;; convert table of web site -> org table
+(defun my-web2org-table (start end)
+  (interactive "r")
+  (let* ((lines (split-string (buffer-substring-no-properties start end) "\n")))
+    (delete-region start end)
+    (dolist (line lines)
+      (let* ((items (split-string line "\t")))
+        (dolist (item items)
+          (insert "|" item)))
+      (insert "|\n")))
+  (org-table-align))
 
 
 ;; code jump : dumb-jump
@@ -313,10 +332,8 @@
 (require 'company-tern)
 
 (add-to-list 'company-backends 'company-tern)
-(add-hook 'js2-mode-hook (lambda ()
-;;                           (company-mode)
-                           (tern-mode)
-                           (setq js2-basic-offset 4)))
+
+
 
 ;; https://github.com/pashky/restclient.el
 (require 'restclient)
@@ -362,8 +379,47 @@
             (my-load-jedi)))
 
 
-;; ====== js2
+;; ====== javascript
+
 (add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode)) ;; 重い？ fly-check 補完はcompany-tern
+
+;;; sudo npm install -g tern
+(add-to-list 'auto-mode-alist '("\\.js$" . js2-mode))
+(defun my-company-tern-mode ()
+  "Tern mode for JavaScript code assist."
+  (interactive)
+  (require 'tern)
+  (require 'company-tern)
+  ;; (my-company-mode)
+  (tern-mode)
+
+  (add-to-list 'company-backends 'company-tern)
+  (define-key tern-mode-keymap (kbd "C-i") 'tern-find-definition)
+  (define-key tern-mode-keymap (kbd "C-S-j") 'tern-pop-find-definition)
+  (define-key tern-mode-keymap (kbd "C-c C-t") 'tern-get-type)
+  (define-key tern-mode-keymap (kbd "C-c C-d") 'tern-get-docs)
+  (define-key tern-mode-keymap (kbd "C-c C-r") 'tern-rename-variable))
+
+;; my original
+;; (add-hook 'js2-mode-hook (lambda ()
+;;                            ;; (company-mode)
+;;                            (tern-mode)
+;;                            (setq js2-basic-offset 4)))
+
+(add-hook 'js2-mode-hook
+          '(lambda()
+             (my-company-tern-mode)
+             ;;(flycheck-add-next-checker 'javascript-jshint 'javascript-gjslint)
+             (define-key js2-mode-map (kbd "C-c i l") 'my-insert-js2-console-log)
+             (define-key js2-mode-map (kbd "C->") 'js2-next-error)
+             (setq-local helm-dash-docsets '("JavaScript" "jQuery" "NodeJS" "electron" "VueJS" "Chrome_Extensions_API"))))
+
+(defun my-insert-js2-console-log ()
+  (interactive)
+  (insert "console.log()")
+  (backward-char))
+
+
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -379,6 +435,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
+
 
 ;; ====== web-mode
 
@@ -421,6 +478,45 @@
   (setq web-mode-enable-auto-closing t)
 )
 (add-hook 'web-mode-hook 'my-web-mode-hook)
+
+
+(add-hook 'html-mode-hook 'web-mode)
+(add-hook 'web-mode-hook
+          '(lambda()
+             (setq web-mode-enable-auto-indentation nil)
+             (setq web-mode-enable-current-element-highlight t)
+             (setq web-mode-enable-current-column-highlight t)
+             (setq web-mode-enable-comment-annotation t)
+             (setq web-mode-enable-comment-interpolation t)
+             (setq web-mode-markup-indent-offset 2)
+             (setq web-mode-css-indent-offset 4)
+             (setq web-mode-code-indent-offset 4)
+             (setq web-mode-engines-alist
+                   '(
+                     ("django" . "\\.html\\'")
+                     ))
+             (my-company-tern-mode)
+             (my-company-css-mode)
+
+             (define-key web-mode-map (kbd "C-c C-f") 'web-mode-fold-or-unfold)
+             (define-key web-mode-map (kbd "C-M-b") 'web-mode-navigate)
+             (define-key web-mode-map (kbd "C-M-d") 'web-mode-element-child)
+             (define-key web-mode-map (kbd "C-M-f") 'web-mode-navigate)
+             (define-key web-mode-map (kbd "C-M-n") 'web-mode-element-sibling-next)
+             (define-key web-mode-map (kbd "C-M-p") 'web-mode-element-sibling-previous)
+             (define-key web-mode-map (kbd "C-M-u") 'web-mode-element-parent)
+             (define-key web-mode-map (kbd "C-@") 'web-mode-mark-and-expand)
+
+             (setq-local helm-dash-docsets '("HTML" "CSS" "JavaScript" "jQuery" "Angular" "VueJS" "NodeJS" "electron" "Bootstrap 4"))))
+
+
+
+;; css
+
+(defun my-company-css-mode ()
+  "CSS assist with company-mode."
+  (interactive)
+  (add-to-list 'company-backends 'company-css))
 
 
 ;;; C, C++
@@ -470,3 +566,64 @@
     (setq indent-tabs-mode nil)))
 
 (setq eww-search-prefix "http://www.google.co.jp/search?q=")
+
+
+;; Common Lisp
+(add-hook 'lisp-mode-hook
+          (lambda ()
+            (define-key lisp-mode-map (kbd "C-i") 'eval-last-sexp)))
+
+(add-hook 'emacs-lisp-mode-hook
+          (lambda ()
+            (define-key emacs-lisp-mode-map (kbd "C-c <f12>") 'ielm)
+            ;; (define-key emacs-lisp-mode-map (kbd "C-j") 'dumb-jump-go)
+            (define-key emacs-lisp-mode-map (kbd "C-S-j") 'dumb-jump-back)
+            (define-key emacs-lisp-mode-map (kbd "C-u M-d") 'my-elisp-showdoc)
+            (setq-local helm-dash-docsets '("Emacs Lisp"))))
+
+(define-advice elisp-get-fnsym-args-string (:around (orig-fun sym &rest r) docstring)
+  "If SYM is a function, append its docstring."
+  (concat
+   (apply orig-fun sym r)
+   (let* ((doc (and (fboundp sym) (documentation sym 'raw)))
+          (oneline (and doc (substring doc 0 (string-match "\n" doc)))))
+     (and oneline
+          (stringp oneline)
+          (not (string= "" oneline)t)
+          (concat "\n" (propertize oneline 'face 'italic))))))
+
+(defun my-elisp-showdoc (f)
+  (interactive (list (thing-at-point 'symbol t)))
+  (message
+   "%s"
+   (let* ((doc-list      (split-string (documentation (intern f)) "\n"))
+          (number-lines  (min (- (floor (* max-mini-window-height (frame-height))) 2)
+                              (- (length doc-list) 2)))
+          (subset        (concatenate 'list
+                                      (last doc-list)
+                                      '("")
+                                      (subseq doc-list 0 number-lines)))
+          (pruned-subset (if (string-equal (car (last subset)) "")
+                             (butlast subset)
+                           subset)))
+     (mapconcat #'identity pruned-subset "\n"))))
+
+
+;; json-mode
+(add-hook 'json-mode-hook
+          (lambda ()
+            (setq json-mode-indent-level 4)
+            (local-set-key (kbd "C-c C-c") 'json-mode-beautify)
+            (local-set-key (kbd "C-c C-i") 'jsons-print-path)
+            (add-to-list 'auto-mode-alist '("\\.json$" . json-mode))))
+
+(defun my-json-beautify (beg end)
+  "Beautify the selected region of JSON from BEG to END."
+  (interactive "r")
+  (shell-command-on-region beg end "python -mjson.tool" (current-buffer) 'replace))
+
+
+;; helm
+(set-face-attribute 'helm-selection nil
+                      :background "yellow"
+                      :foreground "black")
