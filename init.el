@@ -25,9 +25,10 @@
 (global-unset-key (kbd "C-z"))
 
 (define-key global-map (kbd "C-t") 'set-mark-command)
-(define-key global-map (kbd "C-x C-f") 'helm-ls-git-ls)
+(define-key global-map (kbd "C-x C-f") 'helm-ls-git) ;; old: helm-ls-git-ls
 (define-key global-map (kbd "C-x C-d") 'helm-find-files)
-(define-key global-map (kbd "C-x C-j") 'helm-git-grep)
+;; (define-key global-map (kbd "C-x C-j") 'helm-git-grep)
+(define-key global-map (kbd "C-x C-j") 'helm-do-ag-project-root)
 (global-set-key [remap kill-ring-save] 'easy-kill)
 (define-key global-map (kbd "C-x C-t") 'find-file)
 (define-key global-map (kbd "M-.") 'dumb-jump-go)
@@ -80,6 +81,16 @@
       (setq inhibit-splash-screen t)
       (tool-bar-mode -1)))
 
+;; 解像度に応じてフォントサイズ変更
+;; (defun my-set-default-font ()
+;;   "Set my preferred default fonts."
+;;   (interactive)
+;;   (let ((width (nth 3 (nth 1 (frame-monitor-attributes)))))  ;; Should use other than frame-monitor-attributes?
+;;     (if (<= width 1080)
+;;         (set-frame-font  "Input Mono-12.0") ;; TODO 12.5
+;;       (set-frame-font  "Input Mono-14.0")))
+;;   (set-fontset-font t 'japanese-jisx0208 (font-spec :family "Noto Sans CJK JP")))
+
 
 ;;; color theme
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
@@ -116,7 +127,7 @@
 
 ;; garbage collection
 (setq garbage-collection-messages t)
-;; (setq gc-cons-threshold (* 20 1024 1024))  ;; ロードが遅いときはメモリの閾値が低すぎるのが原因かも
+(setq gc-cons-threshold (* 20 1024 1024))  ;; ロードが遅いときはメモリの閾値が低すぎるのが原因かも
 
 
 ;; show line number
@@ -131,6 +142,9 @@
 
 
 ;; (setq debug-on-error t)
+
+;; replace text
+(require 'iedit)
 
 
 ;; neotree
@@ -173,18 +187,48 @@
 (require 'helm-ag)
 
 (setq helm-ag-base-command "rg --vimgrep --no-heading -i") ;; use ripgrep
-
 ;;(setq helm-ag-base-command "grep -rin") ;; use grep in case ripgrep isn't available
-
 (setq helm-ag-insert-at-point 'symbol)
-
 (defun my-helm-ag-set-option (arg)
   "Set ag options with ARG."
   (interactive "Mset rg options: ")
   (setq helm-ag-command-option arg))
 
+(defun helm-ag-dot-emacs ()
+  (interactive)
+  (helm-do-ag "~/.emacs.d/"))
 
-;;; list the search result
+
+;;; projectile
+(require 'projectile nil t)
+(projectile-global-mode)
+
+;; (defun helm-projectile-ag ()
+;;   (interactive)
+;;   (helm-ag (projectile-project-root)))
+
+
+(setq projectile-completion-system 'helm)
+(helm-projectile-on)
+
+(define-key global-map (kbd "C-c p f") 'helm-projectile-find-file)
+(define-key global-map (kbd "C-c p h") 'helm-projectile)
+(define-key global-map (kbd "C-c p r") 'helm-projectile-recentf)
+
+
+(defun my-helm-projectile-or-git-ls ()
+  "Execute helm-projectile if the current buffer is on local.
+Otherwise, execute helm-ls-git-ls to make the performance faster."
+  (interactive)
+  (if (file-remote-p default-directory)
+      ;; (helm-ls-git-ls)
+      (helm-ls-git)
+    (helm-projectile)))
+
+;; (define-key my-keys-minor-mode-map (kbd "M-f") 'my-helm-projectile-or-git-ls)
+
+
+;;; color-moccur
 ;; (when (require 'color-moccur nil t)
 ;;   (define-key global-map (kbd "M-o") 'occur-by-moccur)
 ;;   (setq moccur-split-word t)
@@ -215,6 +259,13 @@
 (show-paren-mode t)
 (setq show-paren-delay 0)
 
+;; paren-completer: installed
+;; M-x paren-completer-add-single-delimiter
+;; M-x paren-completer-add-single-delimiter-with-newline
+;; M-x paren-completer-add-all-delimiters
+;; M-x paren-completer-add-all-delimiters-with-newline
+
+
 ;; 全角スペースを強制表示する
 (require 'whitespace)
 (global-whitespace-mode 1)
@@ -231,7 +282,7 @@
         (tab-mark ?\t [?\u00BB ?\t] [?\\ ?\t])))
 (setq whitespace-space-regexp "\\(\u3000+\\)")
 
-;; not use tab, but space
+;; Use space instead of tab.
 ;;(setq-default indent-tabs-mode t)
 ;; tab = space * 4
 ;;(setq-default tab-width 4)
@@ -372,11 +423,23 @@
   (setq jedi:complete-on-dot t)
   (setq jedi:use-shortcuts t))
 
+(defun flycheck-python-setup ()
+;; ;;  (#'global-flycheck-mode)
+;;   (flycheck-mode)
+
+;;   (custom-set-variables
+;;    '(flycheck-python-flake8-executable "python3")
+;;    ;; '(flycheck-python-pycompile-executable "python3")
+;;    '(flycheck-python-pylint-executable "python3"))
+
+  )
+
 (add-hook 'python-mode-hook
           (lambda ()
             (local-set-key (kbd "C-C C-C") 'my-compile)
             (setq compilation-scroll-output t)
-            (my-load-jedi)))
+            (my-load-jedi)
+            (flycheck-python-setup)))
 
 
 ;; ====== javascript
@@ -412,6 +475,11 @@
              ;;(flycheck-add-next-checker 'javascript-jshint 'javascript-gjslint)
              (define-key js2-mode-map (kbd "C-c i l") 'my-insert-js2-console-log)
              (define-key js2-mode-map (kbd "C->") 'js2-next-error)
+
+             ;; js indent
+             (setq js2-basic-offset 4)
+             (setq js-switch-indent-offset 4)
+
              (setq-local helm-dash-docsets '("JavaScript" "jQuery" "NodeJS" "electron" "VueJS" "Chrome_Extensions_API"))))
 
 (defun my-insert-js2-console-log ()
@@ -428,7 +496,7 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    (quote
-    (yasnippet-snippets yasnippet elpy company-jedi counsel neotree xclip lsp-ui lsp-mode company-go go-mode magit edit-server restclient helm-swoop helm-migemo migemo dumb-jump swift-mode color-moccur jedi git-gutter highlight-symbol helm-tramp smooth-scrolling company-irony irony easy-kill helm-ls-git helm-git-grep helm-ag web-mode js2-mode company-tern))))
+    (protobuf-mode impatient-mode emmet-mode helm-ls-git iedit typescript-mode highlight-unique-symbol paren-completer flycheck helm-projectile htmlize yasnippet-snippets yasnippet elpy company-jedi counsel neotree xclip lsp-ui lsp-mode company-go go-mode magit edit-server restclient helm-swoop helm-migemo migemo dumb-jump swift-mode color-moccur jedi git-gutter highlight-symbol helm-tramp smooth-scrolling company-irony irony easy-kill helm-git-grep helm-ag web-mode js2-mode company-tern))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -456,7 +524,7 @@
   "Hooks for Web mode."
 
   ;; インデント設定
-  (setq web-mode-markup-indent-offset 2)
+  (setq web-mode-markup-indent-offset 4)  ;; changed from 2
   (setq web-mode-css-indent-offset 4)
   (setq web-mode-code-indent-offset 4)
 
@@ -466,7 +534,7 @@
   ;; フォントの配色
   (set-face-attribute 'web-mode-doctype-face nil :foreground "Pink3")
   (set-face-attribute 'web-mode-html-tag-bracket-face nil :foreground "LightGray")
-  (set-face-attribute 'web-mode-html-tag-face nil :foreground "Blue")
+  (set-face-attribute 'web-mode-html-tag-face nil :foreground "#4A8ACA")
   (set-face-attribute 'web-mode-html-attr-value-face nil :foreground "orange")
   (set-face-attribute 'web-mode-html-attr-name-face nil :foreground "light blue")
 
@@ -509,7 +577,12 @@
 
              (setq-local helm-dash-docsets '("HTML" "CSS" "JavaScript" "jQuery" "Angular" "VueJS" "NodeJS" "electron" "Bootstrap 4"))))
 
+(require 'emmet-mode)
+(add-hook 'emmet-mode-hook (lambda () (setq emmet-indentation 2)))
 
+(add-hook 'web-mode-hook 'emmet-mode)
+
+(require 'impatient-mode)  ;; M-x httpd-start
 
 ;; css
 
@@ -517,6 +590,24 @@
   "CSS assist with company-mode."
   (interactive)
   (add-to-list 'company-backends 'company-css))
+
+;; ====== typescript
+(require 'typescript-mode)
+(add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-mode))
+
+(require 'tide)
+(add-hook 'typescript-mode-hook
+          (lambda ()
+            (interactive)
+            (tide-setup)
+            (flycheck-mode +1)
+            (setq flycheck-check-syntax-automatically '(save mode-enabled))
+            (eldoc-mode +1)
+            (tide-hl-identifier-mode +1)
+            (company-mode +1)
+            ;; (global-set-key (kbd "M-*") 'tide-jump-back) default: M-,
+            ;; (add-hook 'before-save-hook 'tide-format-before-save)
+            ))
 
 
 ;;; C, C++
@@ -563,7 +654,7 @@
     (setq-default)
     (setq tab-width 4)
     (setq standard-indent 4)
-    (setq indent-tabs-mode nil)))
+    (setq indent-tabs-mode t)))
 
 (setq eww-search-prefix "http://www.google.co.jp/search?q=")
 
@@ -622,8 +713,50 @@
   (interactive "r")
   (shell-command-on-region beg end "python -mjson.tool" (current-buffer) 'replace))
 
+;; proto-mode
+(add-to-list 'auto-mode-alist '("\\.proto$" . protobuf-mode))
+(defconst my-protobuf-style
+  '((c-basic-offset . 2)
+    (indent-tabs-mode . nil)))
+
+(add-hook 'protobuf-mode-hook
+          (lambda () (c-add-style "my-style" my-protobuf-style t)))
+
 
 ;; helm
 (set-face-attribute 'helm-selection nil
                       :background "yellow"
                       :foreground "black")
+
+
+(defun hello (someone)
+  "Say hello to SOMEONE via M-x hello."
+  (interactive "sWho do you want to say hello to? ")
+  (message "Hello %s!" someone))
+
+(defun foo1 (someone)
+  "Say"
+  ;; (interactive "a typeaaa string: ")
+  (interactive "sWho do you want to say hello to? ")
+  (message "received %s" someone)
+  ;; (forward-word 2))
+  )
+
+(defun name-of-function (arg char)
+  "documentation…"
+  (interactive "p\ncZap to char: ")
+  (message arg)
+  (message char))
+
+
+(defun beautify-json ()
+  (interactive)
+  (let ((b (if mark-active (min (point) (mark)) (point-min)))
+        (e (if mark-active (max (point) (mark)) (point-max))))
+    (shell-command-on-region b e
+     "python3 -mjson.tool" (current-buffer) t)))
+
+;; for json format
+(defun jq-format (beg end)
+  (interactive "r")
+  (shell-command-on-region beg end "jq ." nil t))
